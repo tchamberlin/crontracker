@@ -1,5 +1,8 @@
 #!/bin/bash
 
+set -e
+set -o pipefail
+
 script_msg()
 {
     echo -e "--- ${*} ---"
@@ -10,18 +13,7 @@ fatal_error() {
     exit 1
 }
 
-# Given a command, execute it then check it for errors. Assumes that 0
-# is "success"
-safe_cmd() {
-    # If user has requested a dry run, don't actually execute any commands
-    if [ -z "$DRYRUN" ]; then
-        eval ${@} || fatal_error "${@} failed!"
-    fi
-}
-
 ###
-
-scriptdir="$(dirname "$(readlink -f "$0")")"
 
 if [ -n "$1" ]; then
     crontracker_log_path="$1"
@@ -29,19 +21,38 @@ else
     fatal_error "usage: crontracker CRONTRACKER_LOG_PATH"
 fi
 
-safe_cmd cd "$crontracker_log_path"
+# Make crontracker_log_path if it doesn't exist
+if [ ! -d "$crontracker_log_path" ]; then
+    mkdir -p "$crontracker_log_path"
+fi
 
+# cd there so that we don't have to worry about paths as much
+cd "$crontracker_log_path" || fatal_error "Failed to cd to $crontracker_log_path"
+
+# If we aren't in a git repo, initialize one
+if [ ! -d ".git" ]; then
+    git init
+    crontab -l > crontabs.txt
+    git add crontabs.txt
+    git commit -m "Initial version of crontabs.txt"
+    # Exit here; no sense in continuing since there can't be any diffs
+    echo "Successfully initialized $crontracker_log_path; exiting"
+    exit 0
+fi
+
+# If crontabs.txt has local modifications then that means something else has changed
+# it. Bail out here since we don't know why that has happened
 if ! git diff --quiet -- crontabs.txt; then
     fatal_error "ERROR: crontabs.txt has been locally modified! Bailing out; this will need to be fixed by hand!"
 fi
 
-# Stash this here so that it is accurate in case we need it later
-last_modified="$(git log -1 --format=%cd -- crontabs.txt)"
+# Dump the current crontab
+crontab -l > crontabs.txt
 
-safe_cmd crontab -l > crontabs.txt
-
+# If it is different than it was before, commit the changes
 if ! git diff --exit-code -- crontabs.txt; then
     script_msg "${USER}@${HOSTNAME}'s crontab has been changed; committing changes"
-    safe_cmd git add -- crontabs.txt
-    safe_cmd git commit -m "\"Update to crontabs.txt detected; last modified at $last_modified\""
+    last_modified="$(git log -1 --format=%cd -- crontabs.txt)" || fatal_error "Could not detect last modification of crontabs.txt"
+    git add -- crontabs.txt || fatal_error "Failed to add crontabs.txt"
+    git commit -m "\"Update to crontabs.txt detected; last modified at $last_modified\"" || fatal_error "Failed to commit changes to crontabs.txt"
 fi
