@@ -21,9 +21,15 @@ safe_cmd() {
 
 ###
 
-
 scriptdir="$(dirname "$(readlink -f "$0")")"
-safe_cmd cd "$scriptdir"
+
+if [ -n "$1" ]; then
+    crontracker_log_path="$1"
+else
+    fatal_error "usage: crontracker CRONTRACKER_LOG_PATH"
+fi
+
+safe_cmd cd "$crontracker_log_path"
 
 if ! git diff --quiet -- crontabs.txt; then
     fatal_error "ERROR: crontabs.txt has been locally modified! Bailing out; this will need to be fixed by hand!"
@@ -31,8 +37,8 @@ fi
 
 # Stash this here so that it is accurate in case we need it later
 last_modified="$(git log -1 --format=%cd -- crontabs.txt)"
-safe_cmd crontab -l > crontabs.txt
 
+safe_cmd crontab -l > crontabs.txt
 
 if ! git diff --exit-code -- crontabs.txt; then
     script_msg "${USER}@${HOSTNAME}'s crontab has been changed; committing changes"
