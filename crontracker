@@ -1,7 +1,12 @@
 #!/bin/bash
 
+### OPTIONS ###
+
 set -e
 set -o pipefail
+
+
+### FUNCTIONS ###
 
 script_msg()
 {
@@ -13,46 +18,51 @@ fatal_error() {
     exit 1
 }
 
-###
+### ERROR CHECKING ###
 
 if [ -n "$1" ]; then
-    crontracker_log_path="$1"
+    crontracker_log_repo="$1"
 else
-    fatal_error "usage: crontracker CRONTRACKER_LOG_PATH"
+    fatal_error "usage: crontracker CRONTRACKER_LOG_REPO"
 fi
 
-# Make crontracker_log_path if it doesn't exist
-if [ ! -d "$crontracker_log_path" ]; then
-    mkdir -p "$crontracker_log_path"
+### MAIN ###
+
+# Make crontracker_log_repo if it doesn't exist
+if [ ! -d "$crontracker_log_repo" ]; then
+    mkdir -p "$crontracker_log_repo"
 fi
 
 # cd there so that we don't have to worry about paths as much
-cd "$crontracker_log_path" || fatal_error "Failed to cd to $crontracker_log_path"
+cd "$crontracker_log_repo" || fatal_error "Failed to cd to $crontracker_log_repo"
+
+cronlog="crontab.$(id -un).$(uname -n).txt"
 
 # If we aren't in a git repo, initialize one
 if [ ! -d ".git" ]; then
     git init
-    crontab -l > crontabs.txt
-    git add crontabs.txt
-    git commit -m "Initial version of crontabs.txt"
+    crontab -l > "$cronlog"
+    git add "$cronlog"
+    git commit -m "Initial version of $cronlog"
     # Exit here; no sense in continuing since there can't be any diffs
-    echo "Successfully initialized $crontracker_log_path; exiting"
+    echo "Successfully initialized $crontracker_log_repo; exiting"
     exit 0
 fi
 
-# If crontabs.txt has local modifications then that means something else has changed
+# If $cronlog has local modifications then that means something else has changed
 # it. Bail out here since we don't know why that has happened
-if ! git diff --quiet -- crontabs.txt; then
-    fatal_error "ERROR: crontabs.txt has been locally modified! Bailing out; this will need to be fixed by hand!"
+if ! git diff --quiet -- "$cronlog"; then
+    fatal_error "ERROR: $cronlog has been locally modified! Bailing out; this will need to be fixed by hand!"
 fi
 
 # Dump the current crontab
-crontab -l > crontabs.txt
+crontab -l > "$cronlog"
 
 # If it is different than it was before, commit the changes
-if ! git diff --exit-code -- crontabs.txt; then
+if ! git diff --exit-code -- "$cronlog"; then
+    echo
     script_msg "${USER}@${HOSTNAME}'s crontab has been changed; committing changes"
-    last_modified="$(git log -1 --format=%cd -- crontabs.txt)" || fatal_error "Could not detect last modification of crontabs.txt"
-    git add -- crontabs.txt || fatal_error "Failed to add crontabs.txt"
-    git commit -m "\"Update to crontabs.txt detected; last modified at $last_modified\"" || fatal_error "Failed to commit changes to crontabs.txt"
+    last_modified="$(git log -1 --format=%cd -- "$cronlog")" || fatal_error "Could not detect last modification of $cronlog"
+    git add -- "$cronlog" || fatal_error "Failed to add $cronlog"
+    git commit -m "\"Update to $cronlog detected; last modified at $last_modified\"" || fatal_error "Failed to commit changes to $cronlog"
 fi
