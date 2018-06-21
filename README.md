@@ -1,6 +1,6 @@
 # `crontracker`
 
-Super simple version control for crontabs
+Super simple version control for crontabs. Every time your crontab changes, you will be alerted with an email containing the diff. Changes are stored in a git repository at a location of your choosing.
 
 ## Install
 
@@ -15,7 +15,7 @@ Then you'll need to create a cron job for it. For example:
     
     *  *  *  *  * crontracker ~/crontracker_log
     
-If `~/crontracker.log` doesn't exist, it will be created and `~/crontracker.$USER.$HOSTNAME.txt` will also be created, based on the output of `crontab -l`.
+If `~/crontracker_log` doesn't exist, it will be created and `~/crontracker.$USER.$HOSTNAME.txt` will also be created, based on the output of `crontab -l`.
 
 You'll probably want to reduce the frequency later, but it's nice to have quick iterations at first to make sure things are working.
 
