@@ -1,0 +1,41 @@
+#!/bin/bash
+
+script_msg()
+{
+    echo -e "--- ${*} ---"
+}
+
+fatal_error() {
+    script_msg "\tFATAL ERROR: ${*}" >&2
+    exit 1
+}
+
+# Given a command, execute it then check it for errors. Assumes that 0
+# is "success"
+safe_cmd() {
+    # If user has requested a dry run, don't actually execute any commands
+    if [ -z "$DRYRUN" ]; then
+        eval ${@} || fatal_error "${@} failed!"
+    fi
+}
+
+###
+
+
+scriptdir="$(dirname "$(readlink -f "$0")")"
+safe_cmd cd "$scriptdir"
+
+if ! git diff --quiet -- crontabs.txt; then
+    fatal_error "ERROR: crontabs.txt has been locally modified! Bailing out; this will need to be fixed by hand!"
+fi
+
+# Stash this here so that it is accurate in case we need it later
+last_modified="$(git log -1 --format=%cd -- crontabs.txt)"
+safe_cmd crontab -l > crontabs.txt
+
+
+if ! git diff --exit-code -- crontabs.txt; then
+    script_msg "${USER}@${HOSTNAME}'s crontab has been changed; committing changes"
+    safe_cmd git add -- crontabs.txt
+    safe_cmd git commit -m "\"Update to crontabs.txt detected; last modified at $last_modified\""
+fi
