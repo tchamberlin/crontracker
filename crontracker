@@ -60,6 +60,7 @@ crontab -l > "$cronlog"
 
 # If it is different than it was before, commit the changes
 if [ -n "$(git status --porcelain --short  -- "$cronlog")" ]; then
+    git diff -- "$cronlog"
     echo
     script_msg "${USER}@${HOSTNAME}'s crontab has been changed; committing changes"
     last_modified="$(git log -1 --format=%cd -- "$cronlog")" || fatal_error "Could not detect last modification of $cronlog"
