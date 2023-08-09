@@ -52,7 +52,12 @@ fi
 # If $cronlog has local modifications then that means something else has changed
 # it. Bail out here since we don't know why that has happened
 if [[ -n "$(git status --porcelain -- "$cronlog")" ]]; then
-    fatal_error "ERROR: $cronlog has been locally modified! Bailing out; this will need to be fixed by hand!"
+    fatal_error "ERROR: $cronlog has been locally modified! Bailing out; this will need to be fixed by hand!
+If the quota is full, then that is almost certainly the issue. Current quota: $(myquota)
+If so, you should first resolve the quota issue. Then:
+  $ cd $crontracker_log_repo
+  $ git stash
+"
 fi
 
 # Dump the current crontab
