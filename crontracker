@@ -38,6 +38,16 @@ cd "$crontracker_log_repo" || fatal_error "Failed to cd to $crontracker_log_repo
 
 cronlog="crontab.$(id -un).$(uname -n).txt"
 
+quota_usage() {
+    _quota=$(quota | tail -n1)
+    local limit
+    limit=$(awk '{ print $3 }' <<< "$_quota")
+    local usage
+    usage=$(awk '{ print $1 }' <<< "$_quota")
+
+    echo "$((usage/1024))MiB / $((limit/1024))MiB"
+}
+
 # If we aren't in a git repo, initialize one
 if [[ ! -d ".git" ]]; then
     git init
@@ -53,10 +63,10 @@ fi
 # it. Bail out here since we don't know why that has happened
 if [[ -n "$(git status --porcelain -- "$cronlog")" ]]; then
     fatal_error "ERROR: $cronlog has been locally modified! Bailing out; this will need to be fixed by hand!
-If the quota is full, then that is almost certainly the issue. Current quota: $(myquota)
+If the quota is full, then that is almost certainly the issue. Current quota: $(quota_usage)
 If so, you should first resolve the quota issue. Then:
   $ cd $crontracker_log_repo
-  $ git stash
+  $ git stash # or checkout; just some way to reset the working directory to a clean state
 "
 fi
 
