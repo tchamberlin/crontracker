@@ -70,8 +70,10 @@ If so, you should first resolve the quota issue. Then:
 "
 fi
 
-# Dump the current crontab
-crontab -l > "$cronlog"
+tmpfile="$(mktemp --tmpdir=.)"
+# Dump the current crontab to temp file, then mv that to the "final" destination IF it was successful
+# This should avoid empty files due to quota issues
+crontab -l > "$tmpfile" && mv "$tmpfile" "$cronlog"
 
 # If it is different than it was before, commit the changes
 if [[ -n "$(git status --porcelain  -- "$cronlog")" ]]; then
